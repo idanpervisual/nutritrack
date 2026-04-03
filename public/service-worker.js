@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nutritrack-v2';
+const CACHE_NAME = 'nutritrack-v3';
 
 self.addEventListener('install', (event) => {
   // Pre-cache only non-HTML assets
