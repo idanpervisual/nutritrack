@@ -553,15 +553,44 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Log a Workout</div>
-    <div class="form-group"><label>Activity</label><input type="text" id="wActivity" placeholder="e.g. Running, Cycling, Weights..." /></div>
-    <div class="macro-inputs">
-      <div class="form-group"><label>Duration (min)</label><input type="number" id="wDuration" placeholder="30" /></div>
-      <div class="form-group"><label>Calories Burned</label><input type="number" id="wCalories" placeholder="0" /></div>
+    <div class="tabs" id="workoutTabs">
+      <button class="tab-btn active" onclick="switchWorkoutTab('manual')">✏️ Manual</button>
+      <button class="tab-btn" onclick="switchWorkoutTab('photo')">📷 Photo</button>
     </div>
-    <div style="background:var(--surface2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);margin-bottom:12px;">
-      💡 Not sure about calories? Ask the AI assistant first — it can estimate based on your weight and activity.
+    <!-- Manual tab -->
+    <div id="wTabManual">
+      <div class="form-group"><label>Activity</label><input type="text" id="wActivity" placeholder="e.g. Running, Cycling, Weights..." /></div>
+      <div class="macro-inputs">
+        <div class="form-group"><label>Duration (min)</label><input type="number" id="wDuration" placeholder="30" /></div>
+        <div class="form-group"><label>Calories Burned</label><input type="number" id="wCalories" placeholder="0" /></div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);margin-bottom:12px;">
+        💡 Not sure about calories? Ask the AI assistant — it can estimate based on your weight and activity.
+      </div>
+      <div class="form-group"><label>Notes (optional)</label><input type="text" id="wNotes" placeholder="e.g. felt great, high intensity" /></div>
     </div>
-    <div class="form-group"><label>Notes (optional)</label><input type="text" id="wNotes" placeholder="e.g. felt great, high intensity" /></div>
+    <!-- Photo tab -->
+    <div id="wTabPhoto" style="display:none">
+      <div class="photo-area" id="workoutPhotoArea" onclick="document.getElementById('workoutPhotoInput').click()">
+        <div style="font-size:36px">🏋️</div>
+        <div class="photo-hint">Tap to take a photo of your workout</div>
+        <div class="photo-hint" style="font-size:11px;opacity:.6">AI will identify the exercise and estimate calories</div>
+      </div>
+      <input type="file" id="workoutPhotoInput" accept="image/*" capture="environment" onchange="handleWorkoutPhoto(this)" />
+      <div id="workoutAnalyzeStatus" style="display:none;margin-bottom:12px;text-align:center;">
+        <div class="analyzing-badge"><div class="spinner"></div> Analyzing with AI...</div>
+      </div>
+      <div id="workoutPhotoResult" style="display:none">
+        <div style="background:var(--surface2);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--teal)">✓ AI identified workout — review and confirm</div>
+        <div class="form-group"><label>Activity</label><input type="text" id="wActivityPhoto" /></div>
+        <div class="macro-inputs">
+          <div class="form-group"><label>Duration (min)</label><input type="number" id="wDurationPhoto" /></div>
+          <div class="form-group"><label>Calories Burned</label><input type="number" id="wCaloriesPhoto" /></div>
+        </div>
+        <div class="form-group"><label>Notes (optional)</label><input type="text" id="wNotesPhoto" /></div>
+        <div id="workoutAiNote" style="font-size:12px;color:var(--muted);margin-bottom:12px;"></div>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('addWorkoutModal')">Cancel</button>
       <button class="btn btn-teal" onclick="saveWorkout()">Log Workout</button>
@@ -590,6 +619,7 @@ let profile = { daily_calories:2000, daily_protein:150, daily_carbs:200, daily_f
 let todaySummary = { calories:0, protein:0, carbs:0, fat:0, calories_burned:0, net_calories:0 };
 let meals = [], workouts = [];
 let currentTab = 'manual';
+let currentWorkoutTab = 'manual';
 let chatHistory = []; // {role, content}
 let chatBusy = false;
 
@@ -870,22 +900,71 @@ async function handlePhoto(input) {
 }
 
 // ─── Workout ──────────────────────────────────────────────────────────────────
+function switchWorkoutTab(tab) {
+  currentWorkoutTab = tab;
+  document.getElementById('wTabManual').style.display = tab === 'manual' ? 'block' : 'none';
+  document.getElementById('wTabPhoto').style.display  = tab === 'photo'  ? 'block' : 'none';
+  document.querySelectorAll('#workoutTabs .tab-btn').forEach((b,i) => b.classList.toggle('active', i === ['manual','photo'].indexOf(tab)));
+}
+
 function openWorkoutModal(prefill) {
   document.getElementById('wActivity').value = prefill?.activity || '';
   document.getElementById('wDuration').value = prefill?.duration_min || '';
   document.getElementById('wCalories').value = prefill?.calories_burned || '';
   document.getElementById('wNotes').value    = prefill?.notes || '';
+  document.getElementById('workoutPhotoArea').innerHTML = `<div style="font-size:36px">🏋️</div><div class="photo-hint">Tap to take a photo of your workout</div><div class="photo-hint" style="font-size:11px;opacity:.6">AI will identify the exercise and estimate calories</div>`;
+  document.getElementById('workoutPhotoArea').classList.remove('has-photo');
+  document.getElementById('workoutPhotoResult').style.display = 'none';
+  document.getElementById('workoutAnalyzeStatus').style.display = 'none';
+  document.getElementById('workoutAiNote').textContent = '';
+  switchWorkoutTab('manual');
   openModal('addWorkoutModal');
 }
 
+async function handleWorkoutPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const url = URL.createObjectURL(file);
+  const area = document.getElementById('workoutPhotoArea');
+  area.innerHTML = `<img src="${url}" alt="workout" />`;
+  area.classList.add('has-photo');
+  document.getElementById('workoutAnalyzeStatus').style.display = 'block';
+  document.getElementById('workoutPhotoResult').style.display = 'none';
+  try {
+    const fd = new FormData(); fd.append('photo', file);
+    const res = await fetch('/api/analyze-workout', {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.error) { toast('AI error: ' + data.error); return; }
+    document.getElementById('wActivityPhoto').value  = data.activity || '';
+    document.getElementById('wDurationPhoto').value  = data.duration_min || 0;
+    document.getElementById('wCaloriesPhoto').value  = data.calories_burned || 0;
+    document.getElementById('wNotesPhoto').value     = data.notes || '';
+    if (data.note) document.getElementById('workoutAiNote').textContent = '💡 ' + data.note;
+    document.getElementById('workoutPhotoResult').style.display = 'block';
+  } catch { toast('Failed to analyze photo'); }
+  finally { document.getElementById('workoutAnalyzeStatus').style.display = 'none'; }
+}
+
 async function saveWorkout() {
-  const activity = document.getElementById('wActivity').value.trim();
-  if (!activity) { toast('Please enter an activity'); return; }
-  const body = {
-    activity, duration_min: parseInt(document.getElementById('wDuration').value)||0,
-    calories_burned: parseFloat(document.getElementById('wCalories').value)||0,
-    notes: document.getElementById('wNotes').value.trim(),
-  };
+  let body;
+  if (currentWorkoutTab === 'photo') {
+    const activity = document.getElementById('wActivityPhoto').value.trim();
+    if (!activity) { toast('Please analyze a photo first'); return; }
+    body = {
+      activity,
+      duration_min: parseInt(document.getElementById('wDurationPhoto').value)||0,
+      calories_burned: parseFloat(document.getElementById('wCaloriesPhoto').value)||0,
+      notes: document.getElementById('wNotesPhoto').value.trim(),
+    };
+  } else {
+    const activity = document.getElementById('wActivity').value.trim();
+    if (!activity) { toast('Please enter an activity'); return; }
+    body = {
+      activity,
+      duration_min: parseInt(document.getElementById('wDuration').value)||0,
+      calories_burned: parseFloat(document.getElementById('wCalories').value)||0,
+      notes: document.getElementById('wNotes').value.trim(),
+    };
+  }
   await fetch('/api/workouts', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   closeModal('addWorkoutModal');
   toast('Workout logged ✓');

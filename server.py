@@ -483,6 +483,52 @@ def analyze_photo():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ─── Workout Photo Analysis ───────────────────────────────────────────────────
+
+@app.route('/api/analyze-workout', methods=['POST'])
+def analyze_workout_photo():
+    if 'photo' not in request.files:
+        return jsonify({'error': 'No photo provided'}), 400
+    try:
+        client = get_anthropic_client()
+        photo = request.files['photo']
+        img_bytes = photo.read()
+        img_b64 = base64.standard_b64encode(img_bytes).decode('utf-8')
+        media_type = photo.content_type or 'image/jpeg'
+
+        conn = get_db()
+        try:
+            p = fetchone(q(conn, 'SELECT current_weight FROM profile WHERE id = 1')) or {}
+        finally:
+            conn.close()
+        weight_kg = p.get('current_weight') or 75
+
+        message = client.messages.create(
+            model='claude-opus-4-6',
+            max_tokens=512,
+            messages=[{'role': 'user', 'content': [
+                {'type': 'image', 'source': {'type': 'base64', 'media_type': media_type, 'data': img_b64}},
+                {'type': 'text', 'text': (
+                    f'Analyze this workout or training photo. The user weighs approximately {weight_kg} kg.\n'
+                    'Identify the exercise or activity shown (gym machine, running, cycling, yoga, etc.).\n'
+                    'Estimate a realistic session duration and calories burned based on what you observe.\n'
+                    'Return ONLY a JSON object:\n'
+                    '{"activity":"exercise name","duration_min":number,"calories_burned":number,'
+                    '"notes":"brief observation about the workout","confidence":"high|medium|low","note":"optional caveat"}\n'
+                    'If the photo does not show a workout, still return JSON with your best guess and low confidence. Return ONLY JSON.'
+                )}
+            ]}]
+        )
+        text = message.content[0].text.strip()
+        if text.startswith('```'):
+            text = text.split('```')[1]
+            if text.startswith('json'): text = text[4:]
+        return jsonify(json.loads(text.strip()))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ─── AI Chat with tool use ────────────────────────────────────────────────────
 
 TOOLS = [
