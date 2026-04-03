@@ -519,7 +519,7 @@
         <div class="photo-hint">Tap to take a photo or choose from gallery</div>
         <div class="photo-hint" style="font-size:11px;opacity:.6">Works with meal photos & nutrition labels</div>
       </div>
-      <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(this)" />
+      <input type="file" id="photoInput" accept="image/*" onchange="handlePhoto(this)" />
       <div id="analyzeStatus" style="display:none;margin-bottom:12px;text-align:center;">
         <div class="analyzing-badge"><div class="spinner"></div> Analyzing with AI...</div>
       </div>
@@ -576,7 +576,7 @@
         <div class="photo-hint">Tap to take a photo of your workout</div>
         <div class="photo-hint" style="font-size:11px;opacity:.6">AI will identify the exercise and estimate calories</div>
       </div>
-      <input type="file" id="workoutPhotoInput" accept="image/*" capture="environment" onchange="handleWorkoutPhoto(this)" />
+      <input type="file" id="workoutPhotoInput" accept="image/*" onchange="handleWorkoutPhoto(this)" />
       <div id="workoutAnalyzeStatus" style="display:none;margin-bottom:12px;text-align:center;">
         <div class="analyzing-badge"><div class="spinner"></div> Analyzing with AI...</div>
       </div>
@@ -853,7 +853,8 @@ async function deleteFavoriteItem(id, btn) {
 
 async function saveMeal() {
   let body;
-  if (currentTab === 'manual') {
+  const photoVisible = document.getElementById('tabPhoto').style.display !== 'none';
+  if (!photoVisible) {
     const name = document.getElementById('mealName').value.trim();
     if (!name) { toast('Please enter a meal name'); return; }
     body = { meal_name:name, calories:parseFloat(document.getElementById('mealCal').value)||0,
