@@ -227,6 +227,10 @@ def add_log():
               d.get('carbs',0), d.get('fat',0), 1 if d.get('photo_used') else 0))
         rid = lastid(cur)
         conn.commit()
+    except Exception as e:
+        try: conn.rollback()
+        except: pass
+        return jsonify({'error': str(e), 'type': type(e).__name__}), 500
     finally:
         conn.close()
     return jsonify({'id': rid, 'ok': True})
