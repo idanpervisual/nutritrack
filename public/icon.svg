@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
+  <rect width="192" height="192" rx="36" fill="#0f172a"/>
+  <circle cx="96" cy="96" r="70" stroke="#10b981" stroke-width="8" fill="none" stroke-dasharray="220 440" stroke-dashoffset="-330" stroke-linecap="round"/>
+  <circle cx="96" cy="96" r="70" stroke="#3b82f6" stroke-width="8" fill="none" stroke-dasharray="110 440" stroke-dashoffset="-110" stroke-linecap="round"/>
+  <circle cx="96" cy="96" r="70" stroke="#f59e0b" stroke-width="8" fill="none" stroke-dasharray="55 440" stroke-linecap="round"/>
+  <text x="96" y="88" text-anchor="middle" fill="white" font-size="28" font-weight="bold" font-family="system-ui">NT</text>
+  <text x="96" y="112" text-anchor="middle" fill="#10b981" font-size="14" font-family="system-ui">TRACK</text>
+</svg>
