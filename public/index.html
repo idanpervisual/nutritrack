@@ -862,17 +862,21 @@ async function saveMeal() {
       carbs:parseFloat(document.getElementById('mealCarbs').value)||0,
       fat:parseFloat(document.getElementById('mealFat').value)||0, photo_used:false };
   } else {
-    const name = document.getElementById('mealNamePhoto').value.trim();
-    if (!name) { toast('Please analyze a photo first'); return; }
+    const resultVisible = document.getElementById('photoResult').style.display !== 'none';
+    if (!resultVisible) { toast('Please analyze a photo first'); return; }
+    const name = document.getElementById('mealNamePhoto').value.trim() || 'Photo meal';
     body = { meal_name:name, calories:parseFloat(document.getElementById('mealCalPhoto').value)||0,
       protein:parseFloat(document.getElementById('mealProtPhoto').value)||0,
       carbs:parseFloat(document.getElementById('mealCarbsPhoto').value)||0,
       fat:parseFloat(document.getElementById('mealFatPhoto').value)||0, photo_used:true };
   }
-  await fetch('/api/logs', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  closeModal('addMealModal');
-  toast('Meal logged ✓');
-  refreshToday();
+  try {
+    const res = await fetch('/api/logs', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (!res.ok) { toast('Server error — try again'); return; }
+    closeModal('addMealModal');
+    toast('Meal logged ✓');
+    refreshToday();
+  } catch(e) { toast('Could not save: ' + e.message); }
 }
 
 // ─── Image resize helper ──────────────────────────────────────────────────────
