@@ -38,7 +38,9 @@ if USE_PG:
     def fetchone(cur):
         r = cur.fetchone(); return dict(r) if r else None
     def lastid(cur):
-        cur.execute('SELECT lastval()'); return cur.fetchone()[0]
+        cur.execute('SELECT lastval()')
+        row = cur.fetchone()
+        return row['lastval'] if hasattr(row, 'keys') else row[0]
 else:
     PH = '?'
 
